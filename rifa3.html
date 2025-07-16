@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Rifa de 50 Números</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos personalizados */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilo para el número vendido */
+        .numero.vendido {
+            background-color: #ef4444; /* Rojo */
+            color: white;
+            text-decoration: line-through;
+            transform: scale(0.95);
+            box-shadow: none;
+        }
+        /* Transiciones suaves para una mejor experiencia */
+        .numero {
+            transition: all 0.2s ease-in-out;
+        }
+        /* Sombra de texto personalizada para los premios */
+        .text-shadow-sm {
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-2xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+
+            <div id="cabecera-rifa" class="text-center mb-6 bg-blue-600 text-white p-4 rounded-lg">
+                <h1 class="text-2xl md:text-3xl font-bold">GRAN RIFA</h1>
+                <p class="text-sm md:text-base mt-1">¡Elige tus números y participa!</p>
+                <p class="text-lg md:text-xl mt-2 font-extrabold text-white text-shadow-sm">Premio:</p>
+                <ul class="text-lg md:text-xl list-disc list-inside text-yellow-200 font-bold text-shadow-sm">
+                    <li>Alisado + Corte de Cabello</li>
+                </ul>
+            </div>
+
+            <div id="tablero-rifa" class="grid grid-cols-5 sm:grid-cols-10 gap-2 md:gap-3 text-center">
+                </div>
+
+            <div class="mt-8 text-center">
+                <button id="btn-generar-imagen" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Generar Imagen para Redes Sociales
+                </button>
+            </div>
+
+             <div id="contenedor-resultado" class="mt-8 text-center" style="display: none;">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">¡Imagen Lista!</h2>
+                <p class="text-gray-500 mb-4">Haz clic derecho (o mantén presionado en el móvil) para guardar la imagen, o usa el botón de descarga.</p>
+                <div id="imagen-generada" class="p-2 border border-gray-200 rounded-lg inline-block bg-gray-50">
+                    </div>
+                <a id="btn-descargar" class="mt-4 inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Descargar Imagen
+                </a>
+            </div>
+
+        </div>
+        <footer class="text-center text-gray-500 mt-4 text-sm">
+            Creado con ❤️ para facilitar tu rifa.
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tableroRifa = document.getElementById('tablero-rifa');
+            const btnGenerarImagen = document.getElementById('btn-generar-imagen');
+            const contenedorResultado = document.getElementById('contenedor-resultado');
+            const imagenGeneradaContenedor = document.getElementById('imagen-generada');
+            const btnDescargar = document.getElementById('btn-descargar');
+            const totalNumeros = 50;
+
+            const SERVER_URL = 'http://192.168.1.70:5000'; 
+            let numerosVendidosData = []; 
+
+            async function cargarNumerosVendidos() {
+                try {
+                    const response = await fetch(`${SERVER_URL}/numbers`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    numerosVendidosData = await response.json();
+                    
+                    document.querySelectorAll('.numero').forEach(numeroDiv => {
+                        const num = parseInt(numeroDiv.dataset.number);
+                        const vendidoData = numerosVendidosData.find(item => item.number === num);
+                        if (vendidoData) {
+                            numeroDiv.classList.add('vendido');
+                        } else {
+                            numeroDiv.classList.remove('vendido');
+                        }
+                    });
+                }
+                catch (error) {
+                    console.error("Error al cargar números vendidos:", error);
+                    alert("No se pudieron cargar los números vendidos del servidor. Asegúrate de que el servidor esté funcionando. (Detalles en la consola F12)");
+                }
+            }
+
+            async function guardarNumeroVendido(data) {
+                try {
+                    const response = await fetch(`${SERVER_URL}/numbers`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || response.statusText}`);
+                    }
+                    console.log(`Número ${data.number} guardado/actualizado en el servidor.`);
+                    await cargarNumerosVendidos(); 
+                } catch (error) {
+                    console.error("Error al guardar número vendido:", error);
+                    alert("Error al guardar el número en el servidor. Por favor, inténtalo de nuevo. (Detalles en la consola F12)");
+                }
+            }
+
+            async function eliminarNumeroVendido(number) {
+                try {
+                    const response = await fetch(`${SERVER_URL}/numbers/${number}`, {
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) {
+                         const errorData = await response.json();
+                        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || response.statusText}`);
+                    }
+                    console.log(`Número ${number} eliminado del servidor.`);
+                    await cargarNumerosVendidos(); 
+                } catch (error) {
+                    console.error("Error al eliminar número vendido:", error);
+                    alert("Error al eliminar el número del servidor. Por favor, inténtalo de nuevo. (Detalles en la consola F12)");
+                }
+            }
+
+            for (let i = 1; i <= totalNumeros; i++) {
+                const numeroDiv = document.createElement('div');
+                numeroDiv.classList.add('numero', 'cursor-pointer', 'p-3', 'md:p-4', 'font-bold', 'text-lg', 'md:text-xl', 'rounded-lg', 'shadow', 'bg-gray-200', 'hover:bg-blue-400', 'hover:text-white');
+                numeroDiv.textContent = i.toString().padStart(2, '0');
+                numeroDiv.dataset.number = i;
+                tableroRifa.appendChild(numeroDiv);
+
+                numeroDiv.addEventListener('click', async () => {
+                    const num = parseInt(numeroDiv.dataset.number);
+                    
+                    if (numeroDiv.classList.contains('vendido')) {
+                        const vendidoData = numerosVendidosData.find(item => item.number === num);
+                        if (vendidoData) {
+                            alert(`Número: ${num.toString().padStart(2, '0')}\nComprador: ${vendidoData.buyer_name}\nTeléfono: ${vendidoData.buyer_phone}`);
+                        } else {
+                            alert(`Error: Datos no encontrados para el número ${num.toString().padStart(2, '0')}.`);
+                        }
+                        
+                        if (confirm('¿Deseas desmarcar este número como vendido?')) {
+                            await eliminarNumeroVendido(num);
+                        }
+
+                    } else {
+                        const buyerName = prompt(`Introduce el nombre del comprador para el número ${num.toString().padStart(2, '0')}:`);
+                        if (buyerName === null || buyerName.trim() === '') {
+                            return; 
+                        }
+
+                        let buyerPhone = null;
+                        let isValidPhone = false;
+                        // Bucle para validar el número de teléfono
+                        while (!isValidPhone) {
+                            buyerPhone = prompt(`Introduce el teléfono del comprador para ${buyerName} (9 dígitos numéricos):`);
+                            if (buyerPhone === null) { // Si el usuario cancela
+                                return; 
+                            }
+                            buyerPhone = buyerPhone.trim(); // Eliminar espacios en blanco
+                            
+                            // Expresión regular para validar 9 dígitos numéricos
+                            if (/^\d{9}$/.test(buyerPhone)) {
+                                isValidPhone = true;
+                            } else {
+                                alert('Error: El número de teléfono debe contener exactamente 9 dígitos numéricos. Inténtalo de nuevo.');
+                            }
+                        }
+
+                        await guardarNumeroVendido({
+                            number: num,
+                            name: buyerName.trim(), 
+                            phone: buyerPhone 
+                        });
+                    }
+                });
+            }
+
+            cargarNumerosVendidos();
+
+            btnGenerarImagen.addEventListener('click', () => {
+                btnGenerarImagen.disabled = true;
+                btnGenerarImagen.innerHTML = 'Generando imagen...';
+                
+                const elementoParaCapturar = document.querySelector('.bg-white');
+
+                html2canvas(elementoParaCapturar, {
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: '#f3f4f6'
+                }).then(canvas => {
+                    imagenGeneradaContenedor.innerHTML = '';
+                    const imagen = new Image();
+                    imagen.src = canvas.toDataURL('image/png');
+                    imagen.className = 'max-w-full h-auto rounded-lg shadow-md';
+                    imagenGeneradaContenedor.appendChild(imagen);
+
+                    btnDescargar.href = imagen.src;
+                    btnDescargar.download = 'mi-rifa-numeros-vendidos.png';
+
+                    contenedorResultado.style.display = 'block';
+                    
+                    btnGenerarImagen.disabled = false;
+                    btnGenerarImagen.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> Generar Imagen para Redes Sociales`;
+
+                    contenedorResultado.scrollIntoView({ behavior: 'smooth' });
+                }).catch(err => {
+                    console.error('Oops, algo salió mal!', err);
+                    alert('Hubo un error al generar la imagen. Por favor, inténtalo de nuevo.');
+                    btnGenerarImagen.disabled = false;
+                    btnGenerarImagen.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> Generar Imagen para Redes Sociales`;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
