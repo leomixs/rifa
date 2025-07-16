@@ -6,11 +6,17 @@
     <title>Generador de Rifa de 50 Números</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         /* Estilos personalizados */
         body {
             font-family: 'Inter', sans-serif;
+            background-image: linear-gradient(to right, #6a11cb 0%, #2575fc 100%); /* Fondo degradado */
+            display: flex; /* Asegura que el contenido esté centrado */
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
         }
         /* Estilo para el número vendido */
         .numero.vendido {
@@ -19,36 +25,90 @@
             text-decoration: line-through;
             transform: scale(0.95);
             box-shadow: none;
+            cursor: default; /* Cambia el cursor para indicar que no es interactivo */
         }
         /* Transiciones suaves para una mejor experiencia */
         .numero {
-            transition: all 0.2s ease-in-out;
+            transition: all 0.3s ease-in-out; /* Transición más pronunciada */
+            transform: translateZ(0); /* Truco para mejorar el rendimiento de la animación */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08); /* Sombra inicial */
         }
-        /* Sombra de texto personalizada para los premios */
+        .numero:not(.vendido):hover {
+            transform: translateY(-4px) scale(1.03); /* Efecto de "levantar" y crecer al pasar el ratón */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra más grande al pasar el ratón */
+        }
+        .numero:not(.vendido):active {
+            transform: translateY(-1px) scale(0.99); /* Efecto de "presionar" */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Sombra de texto personalizada para los premios y títulos */
         .text-shadow-sm {
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .text-shadow-md {
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Animación para la barra de progreso */
+        @keyframes fillProgressBar {
+            from { width: 0%; }
+            to { width: var(--progress-width, 0%); }
+        }
+        .progreso-animado {
+            animation: fillProgressBar 1s ease-out forwards;
+        }
+
+        /* Estilo para el número de porcentaje que se superpone a la barra */
+        #progreso-porcentaje {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+            z-index: 1; /* Asegura que el texto esté encima de la barra */
         }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
     <div class="w-full max-w-2xl mx-auto">
-        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 transform transition-transform duration-300 hover:scale-[1.005]">
 
-            <div id="cabecera-rifa" class="text-center mb-6 bg-blue-600 text-white p-4 rounded-lg">
-                <h1 class="text-2xl md:text-3xl font-bold">GRAN RIFA</h1>
-                <p class="text-sm md:text-base mt-1">¡Elige tus números y participa!</p>
-                <p class="text-lg md:text-xl mt-2 font-extrabold text-white text-shadow-sm">Premio:</p>
-                <ul class="text-lg md:text-xl list-disc list-inside text-yellow-200 font-bold text-shadow-sm">
+            <div id="cabecera-rifa" class="text-center mb-6 bg-gradient-to-r from-blue-700 to-indigo-600 text-white p-4 rounded-lg shadow-lg">
+                <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-shadow-md">GRAN RIFA</h1>
+                <p class="text-base md:text-lg mt-1 font-medium text-blue-100">¡Elige tus números y participa!</p>
+                <p class="text-xl md:text-2xl mt-3 font-extrabold text-white text-shadow-sm">Premio:</p>
+                <ul class="text-xl md:text-2xl list-disc list-inside text-yellow-300 font-bold text-shadow-sm">
                     <li>Alisado + Corte de Cabello</li>
                 </ul>
             </div>
 
+            <div class="mb-6 p-4 bg-blue-50 rounded-lg shadow-inner text-center border border-blue-200">
+                <div class="flex justify-around items-center mb-3">
+                    <div class="text-gray-700">
+                        <span class="font-bold text-2xl md:text-3xl text-blue-700" id="vendidos-count">0</span>
+                        <p class="text-sm md:text-base text-gray-600">Vendidos</p>
+                    </div>
+                    <div class="text-gray-700">
+                        <span class="font-bold text-2xl md:text-3xl text-green-600" id="disponibles-count">0</span>
+                        <p class="text-sm md:text-base text-gray-600">Disponibles</p>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-300 rounded-full h-5 relative overflow-hidden">
+                    <div id="progreso-bar" class="bg-gradient-to-r from-green-400 to-blue-500 h-full rounded-full transition-all duration-700 ease-out" style="width: 0%;"></div>
+                    <span id="progreso-porcentaje">0%</span>
+                </div>
+            </div>
             <div id="tablero-rifa" class="grid grid-cols-5 sm:grid-cols-10 gap-2 md:gap-3 text-center">
                 </div>
 
             <div class="mt-8 text-center">
-                <button id="btn-generar-imagen" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                <button id="btn-generar-imagen" class="bg-gradient-to-r from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-green-300 focus:ring-opacity-75">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
@@ -57,11 +117,11 @@
             </div>
 
              <div id="contenedor-resultado" class="mt-8 text-center" style="display: none;">
-                <h2 class="text-xl font-semibold mb-4 text-gray-700">¡Imagen Lista!</h2>
-                <p class="text-gray-500 mb-4">Haz clic derecho (o mantén presionado en el móvil) para guardar la imagen, o usa el botón de descarga.</p>
-                <div id="imagen-generada" class="p-2 border border-gray-200 rounded-lg inline-block bg-gray-50">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">¡Imagen Lista!</h2>
+                <p class="text-gray-600 mb-4">Haz clic derecho (o mantén presionado en el móvil) para guardar la imagen, o usa el botón de descarga.</p>
+                <div id="imagen-generada" class="p-2 border border-gray-200 rounded-lg inline-block bg-gray-50 shadow-md">
                     </div>
-                <a id="btn-descargar" class="mt-4 inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                <a id="btn-descargar" class="mt-4 inline-block bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105 active:scale-95">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
@@ -70,7 +130,7 @@
             </div>
 
         </div>
-        <footer class="text-center text-gray-500 mt-4 text-sm">
+        <footer class="text-center text-gray-300 mt-6 text-sm">
             Creado con ❤️ para facilitar tu rifa.
         </footer>
     </div>
@@ -82,10 +142,32 @@
             const contenedorResultado = document.getElementById('contenedor-resultado');
             const imagenGeneradaContenedor = document.getElementById('imagen-generada');
             const btnDescargar = document.getElementById('btn-descargar');
+            const vendidosCountSpan = document.getElementById('vendidos-count');
+            const disponiblesCountSpan = document.getElementById('disponibles-count');
+            const progresoBar = document.getElementById('progreso-bar');
+            const progresoPorcentajeSpan = document.getElementById('progreso-porcentaje');
+            
             const totalNumeros = 50;
 
-            const SERVER_URL = 'https://leomixs.pythonanywhere.com'; 
+            const SERVER_URL = 'http://192.168.1.70:5000'; // Asegúrate que esta URL sea la correcta
             let numerosVendidosData = []; 
+
+            function actualizarContadores() {
+                const numVendidos = numerosVendidosData.length;
+                const numDisponibles = totalNumeros - numVendidos;
+                const porcentaje = (numVendidos / totalNumeros) * 100;
+
+                vendidosCountSpan.textContent = numVendidos;
+                disponiblesCountSpan.textContent = numDisponibles;
+                
+                // Actualizar barra de progreso con animación
+                progresoBar.style.setProperty('--progress-width', `${porcentaje}%`);
+                progresoBar.classList.remove('progreso-animado'); // Reinicia la animación
+                void progresoBar.offsetWidth; // Truco para forzar el reflow y reiniciar la animación
+                progresoBar.classList.add('progreso-animado');
+                
+                progresoPorcentajeSpan.textContent = `${porcentaje.toFixed(1)}%`;
+            }
 
             async function cargarNumerosVendidos() {
                 try {
@@ -104,6 +186,7 @@
                             numeroDiv.classList.remove('vendido');
                         }
                     });
+                    actualizarContadores();
                 }
                 catch (error) {
                     console.error("Error al cargar números vendidos:", error);
@@ -179,15 +262,13 @@
 
                         let buyerPhone = null;
                         let isValidPhone = false;
-                        // Bucle para validar el número de teléfono
                         while (!isValidPhone) {
                             buyerPhone = prompt(`Introduce el teléfono del comprador para ${buyerName} (9 dígitos numéricos):`);
-                            if (buyerPhone === null) { // Si el usuario cancela
+                            if (buyerPhone === null) {
                                 return; 
                             }
-                            buyerPhone = buyerPhone.trim(); // Eliminar espacios en blanco
+                            buyerPhone = buyerPhone.trim(); 
                             
-                            // Expresión regular para validar 9 dígitos numéricos
                             if (/^\d{9}$/.test(buyerPhone)) {
                                 isValidPhone = true;
                             } else {
@@ -205,17 +286,19 @@
             }
 
             cargarNumerosVendidos();
+            actualizarContadores(); 
 
             btnGenerarImagen.addEventListener('click', () => {
                 btnGenerarImagen.disabled = true;
                 btnGenerarImagen.innerHTML = 'Generando imagen...';
                 
-                const elementoParaCapturar = document.querySelector('.bg-white');
+                // Capturar el elemento principal para la imagen
+                const elementoParaCapturar = document.querySelector('.bg-white.rounded-2xl'); 
 
                 html2canvas(elementoParaCapturar, {
                     scale: 2, 
                     useCORS: true, 
-                    backgroundColor: '#f3f4f6'
+                    backgroundColor: '#ffffff' // Fondo blanco explícito para la captura
                 }).then(canvas => {
                     imagenGeneradaContenedor.innerHTML = '';
                     const imagen = new Image();
